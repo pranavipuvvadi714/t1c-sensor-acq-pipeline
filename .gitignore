@@ -1,0 +1,11 @@
+# ModelSim / Questa simulation artifacts
+work/
+transcript
+vsim.wlf
+*.mpf
+*.cr.mti
+*.wlf
+
+# General temporary files
+*.log
+*.jou
