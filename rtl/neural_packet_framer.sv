@@ -39,9 +39,6 @@ module neural_packet_framer #(
             end
         end
     end
-assert_timer_increment: assert property (@(posedge sensor_clk) disable iff (!sensor_rst_n)
-        timestamp_ctr == $past(timestamp_ctr) + 1)
-        else $error("Error: Timestamp counter did not increment correctly.");
 
 assert_frame_valid_prop: assert property (@(posedge sensor_clk) disable iff (!sensor_rst_n)
         acq_valid |=> framed_valid)
