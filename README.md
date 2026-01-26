@@ -4,29 +4,47 @@ Hardware-based acquisition and buffering pipeline for digitized neural samples.
 
 ## Quick Start
 
-### Running Simulations with VCS
+### Running Simulations with VSIM
 
-The project includes a Makefile for easy simulation. To run simulations using VCS (Synopsys):
+To run simulations using vsim:
 
+1) Open ModelSim by typing vsim in your terminal.
+
+2) Add Files: Project > Add to Project > Existing File...
+
+3) Select all files from the rtl/ folder.
+
+4) Select the testbench from the tb/ folder (e.g., tb/tb_simple_neural.sv).
+
+5) Compile: Compile > Compile All. Ensure there are no errors.
+
+6) Start Simulation: Simulate > Start Simulation...
+
+7) Expand the work library and select the top-level testbench (tb_simple_neural).
+
+8) Click OK.
+
+9) Add Waves: Right-click the instance in the "Sim" tab -> Add to > Wave > All items in region.
+
+10) Run: Type run -all in the transcript window or click the "Run -All" icon.
+
+The simulation log in the transcript window will display the test progress, CSR operations, data input/output, and final status.
+
+###Running Formal verification with Jaspergold
+To run formal verification assertions:
+
+1) Launch JasperGold:
 ```bash
-# Run top-level testbench (complete pipeline)
-make sim-vcs-top
-
-# Run unit testbench (aggregator only)
-make sim-vcs-unit
-
-# Clean VCS generated files
-make clean-vcs
+jaspergold
+```
+2) Source the Script: In the JasperGold console, source the provided TCL script:
+```bash
+source t1c.tcl
 ```
 
-The simulation will display test progress, CSR operations, data input/output, and final status on the console.
-
-### ModelSim/QuestaSim (vsim)
-
-**Note**: To run vsim simulations, you need to set the `DISPLAY` environment variable:
+3)Run Proofs: Once the design is analyzed and elaborated, run all assertions:
 ```bash
-export DISPLAY=:0  # or your X server display
-make sim-vsim-top
+prove -all
 ```
 
 ## Overview
@@ -284,28 +302,6 @@ The testbenches use SystemVerilog code with:
 - Clock generation using `forever` loops
 - Scoreboard-based verification
 - Comprehensive logging
-
-### Simulation Setup
-
-The project includes a Makefile for automated simulation. **VCS (Synopsys) is the primary supported simulator.**
-
-**VCS Commands**:
-```bash
-make sim-vcs-top      # Run top-level testbench (complete pipeline)
-make sim-vcs-unit     # Run unit testbench (aggregator only)
-make clean-vcs        # Clean VCS generated files
-```
-
-**ModelSim/QuestaSim (vsim) - Optional**:
-```bash
-# Note: Requires DISPLAY environment variable to be set
-export DISPLAY=:0
-make sim-vsim-top     # Run top-level testbench
-make sim-vsim-unit    # Run unit testbench
-make clean-vsim       # Clean vsim generated files
-```
-
-**Note**: vsim requires the `DISPLAY` environment variable to be set even when running in batch mode (`-c` flag). Set it to your X server display (e.g., `:0`) or use an X11 forwarding session.
 
 ## File Structure
 
