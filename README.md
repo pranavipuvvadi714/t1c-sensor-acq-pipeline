@@ -30,7 +30,7 @@ To run simulations using vsim:
 
 The simulation log in the transcript window will display the test progress, CSR operations, data input/output, and final status.
 
-###Running Formal verification with Jaspergold
+### Running Formal verification with Jaspergold
 To run formal verification assertions:
 
 1) Launch JasperGold:
