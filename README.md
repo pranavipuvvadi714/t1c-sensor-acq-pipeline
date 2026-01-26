@@ -2,6 +2,33 @@
 
 Hardware-based acquisition and buffering pipeline for digitized neural samples.
 
+## Quick Start
+
+### Running Simulations with VCS
+
+The project includes a Makefile for easy simulation. To run simulations using VCS (Synopsys):
+
+```bash
+# Run top-level testbench (complete pipeline)
+make sim-vcs-top
+
+# Run unit testbench (aggregator only)
+make sim-vcs-unit
+
+# Clean VCS generated files
+make clean-vcs
+```
+
+The simulation will display test progress, CSR operations, data input/output, and final status on the console.
+
+### ModelSim/QuestaSim (vsim)
+
+**Note**: To run vsim simulations, you need to set the `DISPLAY` environment variable:
+```bash
+export DISPLAY=:0  # or your X server display
+make sim-vsim-top
+```
+
 ## Overview
 
 This project implements a multi-clock domain neural signal acquisition pipeline that captures parallel ADC data from 16 channels, processes it through a round-robin aggregator, frames it into packets with timestamps, and buffers it in an asynchronous FIFO for output. The design supports configurable channel masking and includes a Control Status Register (CSR) interface for system control and monitoring.
@@ -15,6 +42,8 @@ Sensor Domain (sensor_clk) → System Domain (sys_clk) → Output Domain (out_cl
      ↓                              ↓                        ↓
 [16 ADCs] → [Aggregator] → [Frontend] → [Framer] → [Async FIFO] → [Output]
 ```
+
+![Data Path Architecture](<docs/images/Flowchart - Page 1 datapath.png>)
 
 ### Clock Domains
 
@@ -55,6 +84,8 @@ The top-level module that integrates all pipeline components.
 
 **Location**: `rtl/neural_aggregator.sv`
 
+![Neural Aggregator Flowchart](<docs/images/Flowchart - Page 1 neural_aggregator.png>)
+
 Bridges the sensor clock domain to the system clock domain by implementing a round-robin sweep mechanism.
 
 **Functionality**:
@@ -73,6 +104,8 @@ Bridges the sensor clock domain to the system clock domain by implementing a rou
 
 **Location**: `rtl/neural_acq_frontend.sv`
 
+![Neural Acquisition Frontend Flowchart](<docs/images/Flowchart - Page 1 neural_acq_frontend.png>)
+
 Processing stage that operates on the system clock domain.
 
 **Functionality**:
@@ -87,6 +120,8 @@ Processing stage that operates on the system clock domain.
 ### 4. `neural_packet_framer`
 
 **Location**: `rtl/neural_packet_framer.sv`
+
+![Neural Packet Framer Flowchart](<docs/images/Flowchart - Page 1 neural_packet_framer.png>)
 
 Packetizes acquisition data into 64-bit frames with timestamps.
 
@@ -109,6 +144,8 @@ Packetizes acquisition data into 64-bit frames with timestamps.
 ### 5. `async_fifo`
 
 **Location**: `rtl/asyncfifo.sv`
+
+![Asynchronous FIFO Flowchart](<docs/images/Flowchart - Page 1 async_fifo.png>)
 
 Asynchronous FIFO that bridges the system clock domain to the output clock domain.
 
@@ -197,16 +234,33 @@ The channel mask register allows selective processing of ADC channels, enabling:
 
 ## Simulation
 
-The testbenches use ModelSim/QuestaSim compatible SystemVerilog code with:
+The testbenches use SystemVerilog code with:
 - `timescale 1ns/1ps`
 - Clock generation using `forever` loops
 - Scoreboard-based verification
 - Comprehensive logging
 
-### Running Simulations
+### Simulation Setup
 
-1. **Top-Level Test**: Run `tb_simple_neural` to test the complete pipeline
-2. **Unit Test**: Run `neural_aggregator_tb` to test the aggregator in isolation
+The project includes a Makefile for automated simulation. **VCS (Synopsys) is the primary supported simulator.**
+
+**VCS Commands**:
+```bash
+make sim-vcs-top      # Run top-level testbench (complete pipeline)
+make sim-vcs-unit     # Run unit testbench (aggregator only)
+make clean-vcs        # Clean VCS generated files
+```
+
+**ModelSim/QuestaSim (vsim) - Optional**:
+```bash
+# Note: Requires DISPLAY environment variable to be set
+export DISPLAY=:0
+make sim-vsim-top     # Run top-level testbench
+make sim-vsim-unit    # Run unit testbench
+make clean-vsim       # Clean vsim generated files
+```
+
+**Note**: vsim requires the `DISPLAY` environment variable to be set even when running in batch mode (`-c` flag). Set it to your X server display (e.g., `:0`) or use an X11 forwarding session.
 
 ## File Structure
 
@@ -221,6 +275,9 @@ t1c-sensor-acq-pipeline/
 ├── tb/
 │   ├── tb_top.sv                  # Top-level testbench
 │   └── neural_aggregator_tb.sv    # Aggregator unit testbench
+├── docs/
+│   └── images/                    # Architecture and module flowcharts
+├── Makefile                       # Simulation build system
 └── README.md                      # This file
 ```
 
