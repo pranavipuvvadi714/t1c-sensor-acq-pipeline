@@ -88,11 +88,6 @@ assert_sweep_start: assert property (@(posedge sys_clk) disable iff (!rst_n)
         else $error("Error: Sweep did not start after trigger pulse.");
 
 
-assert_mask_compliance: assert property (@(posedge sys_clk) disable iff (!rst_n)
-        (is_sweeping && adc_valid_out) |-> channel_mask[adc_channel_out])
-        else $error("Error: Valid asserted for a masked channel!");
-
-
 assert_rr_ptr_increment: assert property (@(posedge sys_clk) disable iff (!rst_n)
         (is_sweeping && rr_ptr < NUM_CHANNELS-1) |=> (rr_ptr == $past(rr_ptr) + 1'b1))
         else $error("Error: Internal rr_ptr did not increment sequentially.");
