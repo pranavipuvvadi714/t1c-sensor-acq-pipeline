@@ -80,6 +80,51 @@ The top-level module that integrates all pipeline components.
 - **Address 0x2**: Channel Mask Register
   - Bits [15:0]: Individual channel enable mask (1 = enabled, 0 = masked)
 
+### Control Status Register (CSR) Interface
+
+The CSR interface provides control and status monitoring for the acquisition pipeline. All CSR operations operate on the system clock domain (`sys_clk`).
+
+**CSR Write Interface** (`csr_wdata`):
+![CSR Write Data Flow](<docs/images/Flowchart - Page 1 csr_wdata.png>)
+
+**CSR Read Interface** (`csr_rdata`):
+![CSR Read Data Flow](<docs/images/Flowchart - Page 1 csr_rdata.png>)
+
+**Register Details**:
+
+1. **Address 0x0 - Global Enable Register** (Read/Write)
+   - **Bit [0]**: `reg_global_enable` - Master enable bit for the acquisition pipeline
+   - **Bits [31:1]**: Reserved (read as 0)
+   - **Default**: 0x0 (disabled)
+   - **Usage**: Set bit 0 to enable data acquisition and processing
+
+2. **Address 0x1 - Status Register** (Read-only)
+   - **Bit [0]**: `fifo_empty_sync2` - FIFO empty flag (synchronized from output clock domain)
+   - **Bit [1]**: `fifo_full` - FIFO full flag (indicates buffer is full)
+   - **Bit [2]**: `reg_overflow_sticky` - Sticky overflow flag (set when FIFO overflows, remains set until cleared)
+   - **Bits [31:3]**: Reserved (read as 0)
+   - **Usage**: Monitor pipeline status and detect overflow conditions
+
+3. **Address 0x2 - Channel Mask Register** (Read/Write)
+   - **Bits [15:0]**: `reg_channel_mask` - Per-channel enable mask
+     - Bit [N] = 1: Channel N is enabled (data will be processed)
+     - Bit [N] = 0: Channel N is masked (data will be filtered out)
+   - **Bits [31:16]**: Reserved (read as 0)
+   - **Default**: 0xFFFF (all channels enabled)
+   - **Usage**: Selectively enable/disable individual ADC channels for power savings or debugging
+
+**CSR Interface Signals**:
+- `csr_addr[2:0]`: 3-bit address (supports 8 registers)
+- `csr_write`: Write enable signal (active high)
+- `csr_wdata[31:0]`: 32-bit write data
+- `csr_rdata[31:0]`: 32-bit read data
+
+**Notes**:
+- All CSR operations are synchronous to `sys_clk`
+- The overflow flag is sticky and must be cleared by reset
+- Channel mask defaults to all channels enabled (0xFFFF) on reset
+- FIFO empty flag is synchronized from the output clock domain to prevent metastability
+
 ### 2. `neural_aggregator`
 
 **Location**: `rtl/neural_aggregator.sv`
