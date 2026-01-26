@@ -283,7 +283,7 @@ module tb_neural_acq_top;
 
 endmodule */
 
-`timescale 1ns / 1ps
+/*`timescale 1ns / 1ps
 
 module tb_simple_neural;
 
@@ -365,8 +365,8 @@ module tb_simple_neural;
     // -------------------------------------------------------------------------
     always @(posedge out_clk) begin
         if (dout_valid && dout_ready) begin
-            $display("[%0t ns] OUTPUT RECEIVED: Channel=%0d, Data=0x%h, Timestamp=%0d", 
-                     $time, dout[31:28], dout[27:12], dout[63:32]);
+            $display("[%0t ns] OUTPUT RECEIVED: dout = 0x%h, Channel=%0d,channel_hex = 0x%h, Data=0x%h, Timestamp=%0d, time_hex = 0x%h", 
+                     $time,dout, dout[31:28],dout[31:28], dout[27:12], dout[63:32],dout[63:32]);
         end
     end
 
@@ -437,6 +437,249 @@ module tb_simple_neural;
 
         // Wait for processing
         repeat(500) @(posedge sys_clk);
+
+        $display("Test Complete.");
+        $finish;
+    end
+
+endmodule
+
+*/
+
+
+`timescale 1ns / 1ps
+
+module tb_simple_neural;
+
+    // -------------------------------------------------------------------------
+    // 1. Signals & Parameters
+    // -------------------------------------------------------------------------
+    parameter DATA_WIDTH   = 16;
+    parameter CH_ID_WIDTH  = 4;
+    parameter NUM_CHANNELS = 16;
+
+    // Clocks and Resets
+    logic sensor_clk, sensor_rst_n;
+    logic sys_clk, sys_rst_n;
+    logic out_clk, out_rst_n;
+
+    // Inputs
+    logic [DATA_WIDTH-1:0] sensor_data_in [NUM_CHANNELS];
+    logic                  sensor_valid_all;
+    
+    // Outputs
+    logic [63:0]           dout;
+    logic                  dout_valid;
+    logic                  dout_ready;
+
+    // CSR (Control Status Register)
+    logic [2:0]            csr_addr;
+    logic                  csr_write;
+    logic [31:0]           csr_wdata;
+    logic [31:0]           csr_rdata;
+
+    // Test Variables
+    logic [15:0]           rand_mask;
+
+    // -------------------------------------------------------------------------
+    // 2. Clock Generation
+    // -------------------------------------------------------------------------
+    initial begin
+        sensor_clk = 0;
+        forever #500 sensor_clk = ~sensor_clk; // 1 MHz (Period 1000ns)
+    end
+
+    initial begin
+        sys_clk = 0;
+        forever #10 sys_clk = ~sys_clk;        // 50 MHz (Period 20ns)
+    end
+
+    initial begin
+        out_clk = 0;
+        forever #20 out_clk = ~out_clk;        // 25 MHz (Period 40ns)
+    end
+
+    // -------------------------------------------------------------------------
+    // 3. DUT Instantiation
+    // -------------------------------------------------------------------------
+    neural_acq_top #(
+        .DATA_WIDTH(DATA_WIDTH),
+        .CH_ID_WIDTH(CH_ID_WIDTH),
+        .NUM_CHANNELS(NUM_CHANNELS)
+    ) dut (
+        .sensor_clk       (sensor_clk),
+        .sensor_rst_n     (sensor_rst_n),
+        .sensor_data_in   (sensor_data_in),
+        .sensor_valid_all (sensor_valid_all),
+
+        .sys_clk          (sys_clk),
+        .sys_rst_n        (sys_rst_n),
+
+        .out_clk          (out_clk),
+        .out_rst_n        (out_rst_n),
+        .dout             (dout),
+        .dout_valid       (dout_valid),
+        .dout_ready       (dout_ready),
+
+        .csr_addr         (csr_addr),
+        .csr_write        (csr_write),
+        .csr_wdata        (csr_wdata),
+        .csr_rdata        (csr_rdata)
+    );
+
+    // -------------------------------------------------------------------------
+    // 4. Monitors
+    // -------------------------------------------------------------------------
+    
+    // NEW: Data Input Monitor
+    // CHANGED: Trigger on 'sys_clk' to catch the valid signal closer to when it happens
+    // independent of the slow sensor clock edge.
+    logic prev_sensor_valid;
+    always @(posedge sys_clk) begin
+        // Edge detection for the valid signal
+        if (sensor_valid_all && !prev_sensor_valid) begin
+            $display("\n[%0t ns] [DATA IN]  Sensor Burst Triggered:", $time);
+            for (int i = 0; i < NUM_CHANNELS; i++) begin
+                // Helper string to show if this channel is allowed by the mask
+                string status;
+                status = (rand_mask[i]) ? "PASS" : "MASK";
+                $display("       Ch %2d: Data=0x%h (%s)", i, sensor_data_in[i], status);
+            end
+            $display(""); // Empty line for readability
+        end
+        prev_sensor_valid <= sensor_valid_all;
+    end
+
+    // Data Output Monitor
+    always @(posedge out_clk) begin
+        if (dout_valid && dout_ready) begin
+            $display("[%0t ns] [DATA OUT] Channel=%2d | Data=0x%h | Timestamp=%0d", 
+                     $time, dout[31:28], dout[27:12], dout[63:32]);
+        end
+    end
+
+    // CSR Bus Monitor (Watches for Writes)
+    always @(posedge sys_clk) begin
+        if (csr_write) begin
+            $display("[%0t ns] [CSR MONITOR] WRITE OP | Addr: 0x%h | WData: 0x%h", $time, csr_addr, csr_wdata);
+        end
+    end
+
+    // -------------------------------------------------------------------------
+    // 5. Main Stimulus
+    // -------------------------------------------------------------------------
+    initial begin
+        // Initialize Inputs
+        sensor_valid_all = 0;
+        for (int i = 0; i < NUM_CHANNELS; i++) sensor_data_in[i] = 0;
+        dout_ready = 1; // Always ready to receive
+        csr_write = 0;
+        csr_addr = 0;
+        csr_wdata = 0;
+
+        // --- RESET SEQUENCE ---
+        $display("Applying Reset...");
+        sensor_rst_n = 0; sys_rst_n = 0; out_rst_n = 0;
+        repeat(20) @(posedge sys_clk);
+        sys_rst_n = 1; out_rst_n = 1;
+        repeat(20) @(posedge sensor_clk);
+        sensor_rst_n = 1;
+        $display("Reset Complete.");
+
+        // --- STEP 1: ENABLE THE SYSTEM (CSR WRITE) ---
+        @(posedge sys_clk);
+        csr_addr  <= 3'h0;      // Control Register Address
+        csr_wdata <= 32'h1;     // Bit 0 = Enable
+        csr_write <= 1;
+        @(posedge sys_clk);
+        csr_write <= 0;
+
+        // --- STEP 1.1: CONFIGURE RANDOM CHANNEL MASK ---
+        rand_mask = $random; // Generate random mask
+        $display("[%0t ns] Generated Random Mask: 0x%h (%b)", $time, rand_mask, rand_mask);
+
+        @(posedge sys_clk);
+        csr_addr  <= 3'h2;           // Mask Register Address
+        csr_wdata <= {16'b0, rand_mask}; 
+        csr_write <= 1;
+        @(posedge sys_clk);
+        csr_write <= 0;
+
+        // --- NEW: CSR READBACK DISPLAY ---
+        repeat(5) @(posedge sys_clk); // Wait a few cycles
+        
+        // 1. Read Global Enable (Addr 0x0)
+        csr_addr <= 3'h0;
+        @(posedge sys_clk); 
+        #1; 
+        $display("[%0t ns] [CSR MONITOR] READ OP  | Addr: 0x%h | RData: 0x%h (Expected: 0x1)", $time, csr_addr, csr_rdata);
+
+        // 2. Read Channel Mask (Addr 0x2)
+        @(posedge sys_clk);
+        csr_addr <= 3'h2;
+        @(posedge sys_clk);
+        #1;
+        $display("[%0t ns] [CSR MONITOR] READ OP  | Addr: 0x%h | RData: 0x%h (Expected: 0x%h)", $time, csr_addr, csr_rdata, rand_mask);
+
+        // Check against logic
+        if (csr_rdata[15:0] !== rand_mask) begin
+            $error("Verification Failed: CSR Readback (0x%h) does not match written mask (0x%h)", csr_rdata, rand_mask);
+        end else begin
+             $display("Verification Passed: CSR Mask Readback matches.");
+        end
+
+        // Wait for enable signal to cross clock domains
+        repeat(10) @(posedge sensor_clk);
+
+        // --- STEP 2: SEND DATA BURST 1 ---
+        $display("[%0t ns] Sending Burst 1...", $time);
+        
+        // FIX: Assert 'valid' closer to the next edge to prevent sys_clk from triggering early.
+        // Wait for edge, then wait 950ns (Period is 1000ns).
+        // This puts the assignment 50ns before the next edge.
+        @(posedge sensor_clk);
+        #950; 
+        for (int i = 0; i < NUM_CHANNELS; i++) begin
+            sensor_data_in[i] = i * 16'h0100; 
+        end
+        sensor_valid_all = 1;
+
+        // The capture happens at this edge
+        @(posedge sensor_clk);
+        #1;
+        sensor_valid_all = 0;
+
+        // Wait for processing
+        repeat(200) @(posedge sys_clk);
+
+        // --- STEP 3: SEND DATA BURST 2 ---
+        $display("[%0t ns] Sending Burst 2...", $time);
+        
+        // FIX applied here as well
+        @(posedge sensor_clk);
+        #950;
+        for (int i = 0; i < NUM_CHANNELS; i++) begin
+            sensor_data_in[i] = 16'hAAAA;
+        end
+        sensor_valid_all = 1;
+
+        @(posedge sensor_clk);
+        #1;
+        sensor_valid_all = 0;
+
+        // Wait for processing
+        repeat(500) @(posedge sys_clk);
+
+        // --- NEW: FINAL STATUS CHECK (CSR 0x1) ---
+        $display("[%0t ns] Checking Final Status via CSR...", $time);
+        @(posedge sys_clk);
+        csr_addr <= 3'h1; // Status Register
+        @(posedge sys_clk);
+        #1;
+        $display("[%0t ns] [CSR MONITOR] READ OP  | Addr: 0x%h | RData: 0x%h", $time, csr_addr, csr_rdata);
+        $display("    -> FIFO Empty:      %b", csr_rdata[0]);
+        $display("    -> FIFO Full:       %b", csr_rdata[1]);
+        $display("    -> Sticky Overflow: %b", csr_rdata[2]);
 
         $display("Test Complete.");
         $finish;

@@ -9,3 +9,5 @@ vsim.wlf
 # General temporary files
 *.log
 *.jou
+etch*
+wlft*

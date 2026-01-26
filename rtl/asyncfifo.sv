@@ -57,4 +57,12 @@ module async_fifo #(
 
     assign full = (wr_ptr_gray == {~rd_ptr_gray_sync2[DEPTH_LOG2:DEPTH_LOG2-1], rd_ptr_gray_sync2[DEPTH_LOG2-2:0]});
     assign empty = (rd_ptr_gray == wr_ptr_gray_sync2);
+
+assert_no_overflow: assert property (@(posedge wr_clk) disable iff (!wr_rst_n)
+        wr_en |-> !full)
+        else $error("Error: FIFO Overflow! Write attempted while FIFO is full.");
+
+assert_no_underflow: assert property (@(posedge rd_clk) disable iff (!rd_rst_n)
+        rd_en |-> !empty)
+        else $error("Error: FIFO Underflow! Read attempted while FIFO is empty.");
 endmodule
