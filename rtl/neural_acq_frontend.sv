@@ -9,6 +9,8 @@ module neural_acq_frontend #(
     input  logic [CH_ID_WIDTH-1:0]  adc_channel_in,
     input  logic                    adc_valid_in,
 
+    input logic                     ch_enable,
+
     output logic [DATA_WIDTH-1:0]   acq_data,
     output logic [CH_ID_WIDTH-1:0]  acq_channel,
     output logic                    acq_valid
@@ -19,7 +21,7 @@ module neural_acq_frontend #(
             acq_channel <= '0;
             acq_valid   <= 1'b0;
         end else begin
-            if (adc_valid_in) begin
+            if (adc_valid_in && ch_enable) begin
                 acq_data    <= adc_data_in;
                 acq_channel <= adc_channel_in;
                 acq_valid   <= 1'b1;
