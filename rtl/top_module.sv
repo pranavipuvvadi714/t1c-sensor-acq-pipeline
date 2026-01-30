@@ -72,6 +72,7 @@ module neural_acq_top #(
         .adc_data_in      (agg_data),
         .adc_channel_in   (agg_channel),
         .adc_valid_in     (agg_valid),
+        .ch_enable        (reg_global_enable),
         .acq_data         (fe_data),
         .acq_channel      (fe_channel),
         .acq_valid        (fe_valid)
